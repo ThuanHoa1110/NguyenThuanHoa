@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Quản Lý Công Việc</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(255,255,255,0.15) 2px, transparent 0),
+        radial-gradient(circle at 80% 80%, rgba(255,255,255,0.15) 2px, transparent 0),
+        linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+      background-repeat: repeat;
+      background-size: 40px 40px;
+      background-attachment: fixed;
+      padding: 30px;
+      max-width: 700px;
+      margin: auto;
+      box-shadow: 0 0 40px rgba(0,0,0,0.1) inset;
+      border-radius: 10px;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    #todo-form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    #task-input, #deadline-input {
+      padding: 10px;
+      font-size: 16px;
+      flex: 1;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    #add-task-btn {
+      padding: 10px 15px;
+      background-color: #2e8b57;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    #add-task-btn:hover {
+      background-color: #246b43;
+    }
+    #filter {
+      margin: 10px 0;
+      padding: 8px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    ul#task-list {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      background: #fff;
+      padding: 10px;
+      margin-bottom: 8px;
+      border-left: 5px solid #2e8b57;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      transition: background-color 0.3s ease;
+    }
+    li.done span {
+      text-decoration: line-through;
+      color: gray;
+    }
+    .task-info {
+      flex: 1;
+      cursor: pointer;
+    }
+    .buttons button {
+      margin-left: 5px;
+      padding: 5px 8px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    .delete-btn { background: crimson; color: white; }
+    .edit-btn { background: goldenrod; color: white; }
+    .delete-btn:hover { background: darkred; }
+    .edit-btn:hover { background: darkorange; }
+    small {
+      display: block;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>📋 Quản Lý Công Việc</h1>
+
+  <div id="todo-form">
+    <input type="text" id="task-input" placeholder="Nhập nội dung..." />
+    <input type="date" id="deadline-input" />
+    <button id="add-task-btn">Thêm công việc</button>
+  </div>
+
+  <select id="filter">
+    <option value="all">Tất cả</option>
+    <option value="done">Đã hoàn thành</option>
+    <option value="notdone">Chưa hoàn thành</option>
+  </select>
+
+  <ul id="task-list"></ul>
+
+  <script>
+    const taskInput = document.getElementById("task-input");
+    const deadlineInput = document.getElementById("deadline-input");
+    const addTaskBtn = document.getElementById("add-task-btn");
+    const taskList = document.getElementById("task-list");
+    const filter = document.getElementById("filter");
+
+    let tasks = [];
+
+    addTaskBtn.addEventListener("click", addTask);
+    filter.addEventListener("change", updateTasks);
+
+    function addTask() {
+      const text = taskInput.value.trim();
+      const deadline = deadlineInput.value;
+
+      if (text === "") {
+        alert("Vui lòng nhập nội dung công việc.");
+        return;
+      }
+
+      const task = {
+        id: Date.now(),
+        text,
+        deadline,
+        isDone: false
+      };
+
+      tasks.push(task);
+      saveTasksToLocalStorage();
+      updateTasks();
+
+      taskInput.value = "";
+      deadlineInput.value = "";
+    }
+
+    function updateTasks() {
+      taskList.innerHTML = "";
+
+      const sortedTasks = [...tasks].sort((a, b) => new Date(a.deadline || 0) - new Date(b.deadline || 0));
+
+      sortedTasks.forEach(task => {
+        if (filter.value === "done" && !task.isDone) return;
+        if (filter.value === "notdone" && task.isDone) return;
+        renderTask(task);
+      });
+    }
+
+    function renderTask(task) {
+      const li = document.createElement("li");
+      if (task.isDone) li.classList.add("done");
+
+      const span = document.createElement("span");
+      span.className = "task-info";
+      span.innerHTML = `<strong>${task.text}</strong>` + (task.deadline ? `<small>📅 ${task.deadline}</small>` : "");
+
+      span.addEventListener("click", () => {
+        task.isDone = !task.isDone;
+        saveTasksToLocalStorage();
+        updateTasks();
+      });
+
+      const btnDiv = document.createElement("div");
+      btnDiv.className = "buttons";
+
+      const delBtn = document.createElement("button");
+      delBtn.textContent = "Xóa";
+      delBtn.className = "delete-btn";
+      delBtn.onclick = () => {
+        tasks = tasks.filter(t => t.id !== task.id);
+        saveTasksToLocalStorage();
+        updateTasks();
+      };
+
+      const editBtn = document.createElement("button");
+      editBtn.textContent = "Sửa";
+      editBtn.className = "edit-btn";
+      editBtn.onclick = () => {
+        const newText = prompt("Nhập nội dung mới:", task.text);
+        if (newText !== null && newText.trim() !== "") {
+          task.text = newText.trim();
+          saveTasksToLocalStorage();
+          updateTasks();
+        }
+      };
+
+      btnDiv.append(editBtn, delBtn);
+      li.append(span, btnDiv);
+      taskList.appendChild(li);
+    }
+
+    function saveTasksToLocalStorage() {
+      localStorage.setItem("tasks", JSON.stringify(tasks));
+    }
+
+    function loadTasksFromLocalStorage() {
+      const saved = localStorage.getItem("tasks");
+      if (saved) {
+        tasks = JSON.parse(saved);
+      }
+      updateTasks();
+    }
+
+    loadTasksFromLocalStorage();
+  </script>
+</body>
+</html>
