@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Quản lý Kho Sách</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Navbar -->
+    <div class="navbar">
+        <div class="navbar-left">
+            <span>📚</span> Quản lý Kho Sách
+        </div>
+        <div class="navbar-right">
+            <a href="#" class="active" id="link-list">Danh sách sách</a>
+            <a href="#" id="link-add">+ Thêm sách mới</a>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats" id="statsBar">
+        <!-- JS render -->
+    </div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Search -->
+        <div class="search-bar">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchInput" placeholder="Tìm kiếm sách theo tiêu đề, tác giả, thể loại...">
+        </div>
+        <!-- Table -->
+        <table class="table-books" id="booksTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Tiêu đề</th>
+                    <th>Tác giả</th>
+                    <th>Năm XB</th>
+                    <th>Thể loại</th>
+                    <th>Số trang</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- JS render -->
+            </tbody>
+        </table>
+        <div id="emptyMsg" style="color:#888;text-align:center;margin:20px 0 0 0;"></div>
+    </div>
+
+    <!-- Popup Modal Form -->
+    <div class="modal-bg" id="modalBg">
+        <form class="modal" id="bookForm" autocomplete="off">
+            <button type="button" class="close-modal" id="closeModal">&times;</button>
+            <h2 id="modalTitle">Thêm sách mới</h2>
+            <input type="hidden" id="bookId">
+            <label>Tiêu đề sách *</label>
+            <input type="text" id="title">
+            <div class="error" id="err-title"></div>
+
+            <label>Tác giả *</label>
+            <input type="text" id="author">
+            <div class="error" id="err-author"></div>
+
+            <div style="display: flex; gap: 10px;">
+                <div style="flex:1">
+                    <label>Năm xuất bản *</label>
+                    <input type="number" id="year" min="1900" max="2025">
+                    <div class="error" id="err-year"></div>
+                </div>
+                <div style="flex:1">
+                    <label>Số trang *</label>
+                    <input type="number" id="pages" min="1">
+                    <div class="error" id="err-pages"></div>
+                </div>
+            </div>
+
+            <label>Thể loại *</label>
+            <select id="category">
+                <option value="">Chọn thể loại</option>
+                <option>Văn học</option>
+                <option>Khoa học</option>
+                <option>Công nghệ</option>
+                <option>Thiếu nhi</option>
+            </select>
+            <div class="error" id="err-category"></div>
+
+            <label>Mật khẩu quản trị *</label>
+            <input type="password" id="adminPass" placeholder="Tối thiểu 8 ký tự, 1 hoa, 1 thường, 1 số, 1 đặc biệt">
+            <div class="error" id="err-adminPass"></div>
+            <label>Xác nhận mật khẩu *</label>
+            <input type="password" id="adminPass2">
+            <div class="error" id="err-adminPass2"></div>
+            <div class="modal-actions">
+                <button type="button" class="btn" id="cancelBtn">Hủy</button>
+                <button type="submit" class="btn btn-add" id="submitBtn">Thêm sách</button>
+            </div>
+        </form>
+    </div>
+    <script>
+    // === Helper Functions ===
+    function getBooks() { return JSON.parse(localStorage.getItem('books') || '[]'); }
+    function setBooks(books) { localStorage.setItem('books', JSON.stringify(books)); }
+    function validatePassword(pw) {
+        return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).{8,}$/.test(pw);
+    }
+
+    // === Modal Handling ===
+    const modalBg = document.getElementById('modalBg');
+    const openModalBtn = document.getElementById('link-add');
+    const closeModalBtn = document.getElementById('closeModal');
+    const cancelBtn = document.getElementById('cancelBtn');
+    function openModal(editBook=null) {
+        modalBg.classList.add('active');
+        document.getElementById('bookForm').reset();
+        for (let id of ['title','author','year','pages','category','adminPass','adminPass2'])
+            document.getElementById('err-' + id).textContent = '';
+        document.getElementById('modalTitle').textContent = editBook ? 'Chỉnh sửa sách' : 'Thêm sách mới';
+        document.getElementById('submitBtn').textContent = editBook ? 'Cập nhật' : 'Thêm sách';
+        if(editBook) {
+            document.getElementById('bookId').value = editBook.id;
+            document.getElementById('title').value = editBook.title;
+            document.getElementById('author').value = editBook.author;
+            document.getElementById('year').value = editBook.year;
+            document.getElementById('pages').value = editBook.pages;
+            document.getElementById('category').value = editBook.category;
+        } else {
+            document.getElementById('bookId').value = '';
+        }
+    }
+    function closeModal() {
+        modalBg.classList.remove('active');
+    }
+    openModalBtn.onclick = () => openModal();
+    closeModalBtn.onclick = cancelBtn.onclick = closeModal;
+
+    // === Render Stats ===
+    function renderStats() {
+        const books = getBooks();
+        let categories = {};
+        let yearMax = 0;
+        let totalPages = 0;
+        books.forEach(b => {
+            categories[b.category] = true;
+            if(+b.year > yearMax) yearMax = +b.year;
+            totalPages += +b.pages;
+        });
+        document.getElementById('statsBar').innerHTML = `
+            <div class="stat-card">
+                <div class="stat-value">${books.length}</div>
+                <div class="stat-label">Tổng số sách</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${Object.keys(categories).length}</div>
+                <div class="stat-label">Thể loại</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${yearMax || '-'}</div>
+                <div class="stat-label">Năm xuất bản mới nhất</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${totalPages}</div>
+                <div class="stat-label">Tổng số trang</div>
+            </div>
+        `;
+    }
+
+    // === Render Books Table ===
+    function renderBooks(filter='') {
+        let books = getBooks();
+        // Filter
+        if (filter) {
+            books = books.filter(b =>
+                b.title.toLowerCase().includes(filter) ||
+                b.author.toLowerCase().includes(filter) ||
+                b.category.toLowerCase().includes(filter)
+            );
+        }
+        const tbody = document.querySelector('#booksTable tbody');
+        tbody.innerHTML = '';
+        if (books.length === 0) {
+            document.getElementById('emptyMsg').textContent = "Không có sách nào phù hợp.";
+            return;
+        } else {
+            document.getElementById('emptyMsg').textContent = "";
+        }
+        books.forEach((book, idx) => {
+            let tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>#${book.id.toString().slice(-4).padStart(4, '0')}</td>
+                <td>${book.title}</td>
+                <td>${book.author}</td>
+                <td>${book.year}</td>
+                <td><span class="badge ${book.category.replace(' ','_')}">${book.category}</span></td>
+                <td>${book.pages} trang</td>
+                <td>
+                    <button class="btn btn-edit" onclick="editBook('${book.id}')">Sửa</button>
+                    <button class="btn btn-delete" onclick="deleteBook('${book.id}')">Xóa</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+    // Edit Book
+    window.editBook = function(id) {
+        const books = getBooks();
+        const book = books.find(b => b.id == id);
+        openModal(book);
+    }
+    // Delete Book
+    window.deleteBook = function(id) {
+        if (confirm('Xác nhận xóa sách này?')) {
+            let books = getBooks().filter(b => b.id != id);
+            setBooks(books);
+            renderStats(); renderBooks(document.getElementById('searchInput').value.trim().toLowerCase());
+        }
+    }
+    // Search
+    document.getElementById('searchInput').oninput = function() {
+        renderBooks(this.value.trim().toLowerCase());
+    }
+
+    // === Handle Form Submit ===
+    document.getElementById('bookForm').onsubmit = function(e) {
+        e.preventDefault();
+        for (let id of ['title','author','year','pages','category','adminPass','adminPass2'])
+            document.getElementById('err-' + id).textContent = '';
+        // Lấy dữ liệu
+        const id = document.getElementById('bookId').value || Date.now();
+        const title = document.getElementById('title').value.trim();
+        const author = document.getElementById('author').value.trim();
+        const year = +document.getElementById('year').value;
+        const pages = +document.getElementById('pages').value;
+        const category = document.getElementById('category').value;
+        const adminPass = document.getElementById('adminPass').value;
+        const adminPass2 = document.getElementById('adminPass2').value;
+
+        let ok = true;
+        if (!title) { document.getElementById('err-title').textContent = 'Không được để trống.'; ok=false; }
+        else if (title.length > 100) { document.getElementById('err-title').textContent = 'Tối đa 100 ký tự.'; ok=false;}
+        if (!author) { document.getElementById('err-author').textContent = 'Không được để trống.'; ok=false;}
+        if (!year || year < 1900 || year > 2025) { document.getElementById('err-year').textContent = 'Năm phải từ 1900 đến 2025.'; ok=false;}
+        if (!pages || pages < 1 || !Number.isInteger(pages)) { document.getElementById('err-pages').textContent = 'Số nguyên > 0.'; ok=false;}
+        if (!category) { document.getElementById('err-category').textContent = 'Chọn thể loại.'; ok=false;}
+        if (!adminPass) { document.getElementById('err-adminPass').textContent = 'Không được để trống.'; ok=false;}
+        else if (!validatePassword(adminPass)) { document.getElementById('err-adminPass').textContent = 'Ít nhất 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.'; ok=false;}
+        if (!adminPass2) { document.getElementById('err-adminPass2').textContent = 'Không được để trống.'; ok=false;}
+        else if (adminPass2 !== adminPass) { document.getElementById('err-adminPass2').textContent = 'Mật khẩu không khớp.'; ok=false;}
+        if (!ok) return;
+        // Lưu
+        let books = getBooks();
+        let newBook = { id, title, author, year, category, pages };
+        let existed = books.some(b => b.id == id);
+        if (existed) {
+            books = books.map(b => b.id == id ? newBook : b);
+        } else {
+            books.push(newBook);
+        }
+        setBooks(books);
+        closeModal();
+        renderStats(); renderBooks(document.getElementById('searchInput').value.trim().toLowerCase());
+    };
+
+    // Init
+    renderStats(); renderBooks();
+
+    // ESC close popup
+    window.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && modalBg.classList.contains('active')) closeModal();
+    });
+    </script>
+</body>
+</html>
