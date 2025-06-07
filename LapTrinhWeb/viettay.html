@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Quản lý Học sinh</title>
+  <style>
+    /* ===== STYLE CSS ===== */
+    .container {
+      width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    } /* // căn giữa vùng chứa nội dung */
+
+    .form-group {
+      margin-bottom: 10px;
+    } /* // khoảng cách giữa các nhóm input */
+
+    .error-message {
+      color: red;
+      font-size: 0.9rem;
+      display: none;
+    } /* // style thông báo lỗi, ban đầu ẩn */
+
+    .notification {
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 4px;
+      display: none;
+    } /* // style khung thông báo */
+
+    .notification.success {
+      background-color: #d4edda;
+    } /* // màu nền xanh nhẹ cho thông báo thành công */
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    } /* // style cơ bản cho bảng */
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    } /* // viền và padding cho ô */
+
+    button {
+      margin-right: 5px;
+    } /* // khoảng cách giữa các nút */
+  </style>
+</head>
+<body>
+  <!-- ===== HTML GIAO DIỆN ===== -->
+  <div class="container"> <!-- // căn giữa toàn bộ giao diện -->
+
+    <!-- Form nhập liệu Học sinh -->
+    <form id="studentForm"> <!-- // Form chính dùng để thêm hoặc sửa học sinh -->
+
+      <!-- Nhóm nhập Họ tên -->
+      <div class="form-group">
+        <label for="fullName">Họ tên:</label>
+        <input type="text" id="fullName" /> <!-- // Input nhập Họ tên học sinh -->
+        <div id="errorFullName" class="error-message"></div> <!-- // Thông báo lỗi Họ tên -->
+      </div>
+
+      <!-- Nhóm nhập Lớp -->
+      <div class="form-group">
+        <label for="className">Lớp:</label>
+        <input type="text" id="className" /> <!-- // Input nhập Lớp học sinh -->
+        <div id="errorClassName" class="error-message"></div> <!-- // Thông báo lỗi Lớp -->
+      </div>
+
+      <!-- Nhóm nút thao tác -->
+      <div class="form-group">
+        <button type="button" id="btnAdd">Thêm Học sinh</button> <!-- // Nút Thêm -->
+        <button type="button" id="btnUpdate" style="display: none;">Cập nhật</button> <!-- // Nút Cập nhật -->
+        <button type="button" id="btnCancel" style="display: none;">Hủy</button> <!-- // Nút Hủy -->
+      </div>
+    </form>
+
+    <!-- Thông báo -->
+    <div id="notification" class="notification success"></div> <!-- // Thông báo thao tác -->
+
+    <!-- Bảng danh sách học sinh -->
+    <table id="studentTable">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Họ tên</th>
+          <th>Lớp</th>
+          <th>Hành động</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>Nguyễn Văn A</td>
+          <td>10A1</td>
+          <td>
+<button class="btn-edit" data-id="1">Sửa</button>
+            <button class="btn-delete" data-id="1">Xóa</button>
+          </td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>Trần Thị B</td>
+          <td>11B2</td>
+          <td>
+            <button class="btn-edit" data-id="2">Sửa</button>
+            <button class="btn-delete" data-id="2">Xóa</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===== JAVASCRIPT XỬ LÝ ===== -->
+  <script>
+    // Lấy tham chiếu DOM
+    let fullName = document.getElementById("fullName"); // Input Họ tên
+    let className = document.getElementById("className"); // Input Lớp
+    let errorFullName = document.getElementById("errorFullName"); // Lỗi Họ tên
+    let errorClassName = document.getElementById("errorClassName"); // Lỗi Lớp
+    let notification = document.getElementById("notification"); // Khu vực thông báo
+
+    let btnAdd = document.getElementById("btnAdd"); // Nút Thêm
+    let btnUpdate = document.getElementById("btnUpdate"); // Nút Cập nhật
+    let btnCancel = document.getElementById("btnCancel"); // Nút Hủy
+
+    let editId = null; // Biến giả lập ID đang sửa
+
+    // Hàm kiểm tra dữ liệu
+    function validateForm() {
+      let isValid = true;
+
+      // Kiểm tra Họ tên
+      if (fullName.value.trim() === "") {
+        errorFullName.textContent = "Họ tên không được để trống";
+        errorFullName.style.display = "block";
+        isValid = false;
+      } else if (fullName.value.length > 50) {
+        errorFullName.textContent = "Họ tên không quá 50 ký tự";
+        errorFullName.style.display = "block";
+        isValid = false;
+      } else {
+        errorFullName.style.display = "none";
+      }
+
+      // Kiểm tra Lớp
+      if (className.value.trim() === "") {
+        errorClassName.textContent = "Lớp không được để trống";
+        errorClassName.style.display = "block";
+        isValid = false;
+      } else {
+        errorClassName.style.display = "none";
+      }
+
+      return isValid;
+    }
+
+    // Hiển thị thông báo
+    function showNotification(message) {
+      notification.textContent = message;
+      notification.style.display = "block";
+      setTimeout(() => {
+        notification.style.display = "none";
+      }, 2000);
+    }
+
+    // Xử lý nút Thêm
+    btnAdd.onclick = function () {
+      if (validateForm()) {
+        showNotification("Thêm Học sinh thành công!");
+        fullName.value = "";
+        className.value = "";
+      }
+    };
+
+    // Xử lý nút Sửa
+    document.querySelectorAll(".btn-edit").forEach(btn => {
+      btn.onclick = function () {
+        editId = this.dataset.id;
+        fullName.value = "Giá trị đang sửa"; // Giả lập dữ liệu cần sửa
+        className.value = "Lớp đang sửa";
+
+        btnAdd.style.display = "none";
+        btnUpdate.style.display = "inline";
+btnCancel.style.display = "inline";
+      };
+    });
+
+    // Xử lý nút Cập nhật
+    btnUpdate.onclick = function () {
+      if (validateForm()) {
+        showNotification("Chỉnh sửa thành công!");
+        fullName.value = "";
+        className.value = "";
+        btnAdd.style.display = "inline";
+        btnUpdate.style.display = "none";
+        btnCancel.style.display = "none";
+      }
+    };
+
+    // Xử lý nút Hủy
+    btnCancel.onclick = function () {
+      fullName.value = "";
+      className.value = "";
+      errorFullName.style.display = "none";
+      errorClassName.style.display = "none";
+
+      btnAdd.style.display = "inline";
+      btnUpdate.style.display = "none";
+      btnCancel.style.display = "none";
+    };
+
+    // Xử lý nút Xóa
+    document.querySelectorAll(".btn-delete").forEach(btn => {
+      btn.onclick = function () {
+        if (window.confirm("Bạn có chắc muốn xóa Học sinh này?")) {
+          showNotification("Xóa thành công!");
+        }
+      };
+    });
+  </script>
+</body>
+</html>
